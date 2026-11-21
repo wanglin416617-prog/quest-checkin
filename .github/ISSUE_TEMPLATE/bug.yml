@@ -1,0 +1,48 @@
+name: 缺陷
+description: 报告一个问题或异常行为
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: channel
+    attributes:
+      label: 使用方式
+      options:
+        - PWA（浏览器 / 添加到主屏幕）
+        - 安卓 APK
+        - 本地开发预览
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 设备与系统 / 浏览器
+      placeholder: 例如 Android 14，Chrome 142
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: 1. …\n2. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+    validations:
+      required: true
+  - type: checkboxes
+    id: extras
+    attributes:
+      label: 补充
+      options:
+        - label: 在离线状态下也能复现
+        - label: 可以用导出的备份复现（请不要在 issue 中上传含个人数据的备份）

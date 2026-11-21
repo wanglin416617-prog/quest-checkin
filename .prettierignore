@@ -1,0 +1,8 @@
+dist
+android
+coverage
+node_modules
+pnpm-lock.yaml
+*.png
+playwright-report
+test-results

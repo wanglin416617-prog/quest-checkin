@@ -1,0 +1,41 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels: [dependencies]
+    groups:
+      eslint-and-formatting:
+        patterns:
+          - "eslint*"
+          - "@eslint/*"
+          - "typescript-eslint"
+          - "prettier"
+          - "eslint-config-prettier"
+          - "eslint-plugin-*"
+      testing:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "@testing-library/*"
+          - "fake-indexeddb"
+          - "jsdom"
+      capacitor:
+        patterns:
+          - "@capacitor/*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, ci]
+
+  - package-ecosystem: gradle
+    directory: /android
+    schedule:
+      interval: monthly
+    labels: [dependencies, android]

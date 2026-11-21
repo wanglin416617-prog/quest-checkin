@@ -1,0 +1,43 @@
+# Dependencies and build output
+node_modules/
+dist/
+dist-ssr/
+coverage/
+playwright-report/
+test-results/
+*.local
+
+# Environment and secrets (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.jks
+*.keystore
+key.properties
+google-services.json
+
+# Logs and OS
+logs/
+*.log
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Android / Capacitor local artifacts (keep the android/ project, ignore machine paths and secrets)
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/app/release/
+android/captures/
+android/*.apk
+android/*.aab
+android/.idea/
+android/keystore/
+android/app/google-services.json

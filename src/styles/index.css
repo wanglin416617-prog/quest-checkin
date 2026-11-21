@@ -1,0 +1,33 @@
+:root {
+  color-scheme: light;
+  --bg: #fff7ed;
+  --ink: #1c1917;
+  --muted: #57534e;
+  --accent: #f97316;
+  --card: #ffffff;
+  font-family: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
