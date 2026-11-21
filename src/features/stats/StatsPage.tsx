@@ -7,6 +7,17 @@ import { weightLabel, reasonLabel } from "@/ui/format";
 
 type Range = "week" | "month" | "all";
 
+const DOW = ["一", "", "三", "", "五", "", "日"];
+
+function monthMarks(heat: Snapshot["heat"]): string[] {
+  return heat.map((col, index) => {
+    const first = col.find((cell) => cell.date.endsWith("-01"));
+    if (first) return `${Number(first.date.slice(5, 7))}月`;
+    if (index === 0 && col[0]) return `${Number(col[0].date.slice(5, 7))}月`;
+    return "";
+  });
+}
+
 export function StatsPage({ snap }: { snap: Snapshot }) {
   const [range, setRange] = useState<Range>("month");
   const summary = range === "month" ? snap.month : rangeSummary(snap, range);
@@ -46,7 +57,14 @@ export function StatsPage({ snap }: { snap: Snapshot }) {
           <div className="card f1" style={{ padding: 12 }}>
             <div className="cap c2">完成率</div>
             <div className="num" style={{ font: "800 24px/30px var(--font-num)" }}>
-              {summary.completionPct ?? "—"}
+              {summary.completionPct === null ? (
+                "—"
+              ) : (
+                <span className="stat-fig">
+                  {summary.completionPct}
+                  <span className="cap c2">%</span>
+                </span>
+              )}
             </div>
             <div className="cap c3">
               {summary.deltaPct === null
@@ -69,40 +87,47 @@ export function StatsPage({ snap }: { snap: Snapshot }) {
             </div>
             <span className="cap c3">近 16 周</span>
           </div>
-          <div
-            className="mt12"
-            style={{ display: "grid", gridTemplateColumns: "repeat(16, 1fr)", gap: 3 }}
-          >
-            {snap.heat[0]?.map((_, row) =>
-              snap.heat.map((col, column) => {
-                const cell = col[row];
-                if (!cell) return null;
-                const background =
-                  cell.future || cell.neutral
-                    ? "transparent"
-                    : cell.level === 0
-                      ? "var(--color-surface-3)"
-                      : cell.level === 4
-                        ? "var(--color-brand)"
-                        : `color-mix(in srgb, var(--color-brand) ${cell.level * 25}%, var(--color-surface-3))`;
-                return (
-                  <i
-                    key={`${column}-${row}`}
-                    title={cell.date}
-                    style={{
-                      aspectRatio: "1",
-                      borderRadius: 4,
-                      background,
-                      border: cell.future ? "1px dashed var(--color-border)" : undefined,
-                      outline: cell.date === snap.today ? "2px solid var(--color-text)" : undefined,
-                    }}
-                  />
-                );
-              }),
-            )}
+          <div className="heat mt12">
+            <div className="heat-dow" aria-hidden="true">
+              {DOW.map((label, index) => (
+                <span key={index}>{label}</span>
+              ))}
+            </div>
+            <div className="heat-grid" role="img" aria-label="近 16 周打卡热力图">
+              {snap.heat[0]?.map((_, row) =>
+                snap.heat.map((col, column) => {
+                  const cell = col[row];
+                  if (!cell) return null;
+                  const tone = cell.future ? "is-future" : `lv-${cell.level}`;
+                  return (
+                    <span
+                      key={`${column}-${row}`}
+                      className={`heat-cell ${tone}${cell.date === snap.today ? " is-today" : ""}`}
+                      title={cell.date}
+                    >
+                      {cell.imperfect ? <i className="heat-dot" /> : null}
+                    </span>
+                  );
+                }),
+              )}
+            </div>
           </div>
-          <div className="cap c2 mt12">
-            本周 {snap.weekLine.achieved}/{snap.weekLine.dueDays} 天达成
+          <div className="heat-months" aria-hidden="true">
+            {monthMarks(snap.heat).map((label, index) => (
+              <span key={index}>{label}</span>
+            ))}
+          </div>
+          <div className="row between mt12">
+            <span className="cap c2">
+              本周 {snap.weekLine.achieved}/{snap.weekLine.dueDays} 天达成
+            </span>
+            <span className="heat-legend cap c2">
+              少
+              {[0, 1, 2, 3, 4].map((level) => (
+                <i key={level} className={`heat-swatch lv-${level}`} />
+              ))}
+              多
+            </span>
           </div>
         </div>
         <div className="sec-h">

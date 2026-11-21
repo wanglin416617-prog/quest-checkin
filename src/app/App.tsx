@@ -30,6 +30,8 @@ type Screen =
   | { name: "sheet"; kind: "weigh" | "deposit"; goalId: string };
 
 const qaBuild = import.meta.env.DEV || import.meta.env.VITE_QA_TOOLS === "1";
+const TOAST_STAY_MS = 4000;
+const TOAST_EXIT_MS = 160;
 
 export function App() {
   const [seeded, setSeeded] = useState(false);
@@ -37,6 +39,7 @@ export function App() {
   const [screen, setScreen] = useState<Screen>({ name: "tab", tab: "home" });
   const [splash, setSplash] = useState(true);
   const [toast, setToast] = useState<{ text: string; goalId: string } | null>(null);
+  const [toastOut, setToastOut] = useState(false);
   const [error, setError] = useState("");
   const [Qa, setQa] = useState<ComponentType<{ pity: number; onChanged: () => void }> | null>(null);
 
@@ -50,14 +53,23 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 4000);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
+    if (!toast || toastOut) return;
+    const stay = window.setTimeout(() => setToastOut(true), TOAST_STAY_MS);
+    return () => window.clearTimeout(stay);
+  }, [toast, toastOut]);
+
+  useEffect(() => {
+    if (!toastOut || !toast) return;
+    const exit = window.setTimeout(() => {
+      setToast(null);
+      setToastOut(false);
+    }, TOAST_EXIT_MS);
+    return () => window.clearTimeout(exit);
+  }, [toast, toastOut]);
 
   useEffect(() => {
     if (!snap) return;
-    applyTheme(snap.theme);
+    applyTheme(snap.theme, snap.reduceMotion);
     try {
       localStorage.setItem("qc-theme", snap.theme);
     } catch {
@@ -73,10 +85,17 @@ export function App() {
 
   const tab = screen.name === "tab" ? screen.tab : screen.name === "ledger" ? "home" : "home";
 
+  function move(next: Screen) {
+    setToast(null);
+    setToastOut(false);
+    setScreen(next);
+  }
+
   function showCheck(result: CheckResult, snapNow: Snapshot) {
     const parts = [];
     if (result.points) parts.push(`+${result.points}`);
     if (result.allClear) parts.push(`今日全清 +${result.allClear}`);
+    setToastOut(false);
     setToast({ text: parts.join(" · ") || "已记录", goalId: result.goalId });
     celebrate(tierOf(result), snapNow.reduceMotion);
     setScreen({ name: "tab", tab: "home" });
@@ -107,7 +126,7 @@ export function App() {
         </button>
       ) : null}
       {!splash && toast ? (
-        <div className="toast" role="status">
+        <div className={`toast${toastOut ? " out" : ""}`} role="status">
           <span>{toast.text}</span>
           <button
             type="button"
@@ -125,12 +144,12 @@ export function App() {
           {screen.name === "tab" && screen.tab === "home" ? (
             <HomePage
               snap={snap}
-              onCreate={() => setScreen({ name: "create" })}
-              onWeigh={(goalId) => setScreen({ name: "sheet", kind: "weigh", goalId })}
-              onDeposit={(goalId) => setScreen({ name: "sheet", kind: "deposit", goalId })}
+              onCreate={() => move({ name: "create" })}
+              onWeigh={(goalId) => move({ name: "sheet", kind: "weigh", goalId })}
+              onDeposit={(goalId) => move({ name: "sheet", kind: "deposit", goalId })}
               onUndo={(goalId) => void undoGoalToday(goalId)}
-              onLedger={() => setScreen({ name: "ledger" })}
-              onRewards={() => setScreen({ name: "tab", tab: "rewards" })}
+              onLedger={() => move({ name: "ledger" })}
+              onRewards={() => move({ name: "tab", tab: "rewards" })}
             />
           ) : null}
           {screen.name === "tab" && screen.tab === "rewards" ? (
@@ -145,20 +164,20 @@ export function App() {
           ) : null}
           {screen.name === "create" ? (
             <TypePick
-              onBack={() => setScreen({ name: "tab", tab: "home" })}
-              onPick={(kind) => setScreen({ name: "wizard", kind })}
+              onBack={() => move({ name: "tab", tab: "home" })}
+              onPick={(kind) => move({ name: "wizard", kind })}
             />
           ) : null}
           {screen.name === "wizard" ? (
             <Wizard
               kind={screen.kind}
               unit={snap.unit}
-              onBack={() => setScreen({ name: "create" })}
-              onCreated={() => setScreen({ name: "tab", tab: "home" })}
+              onBack={() => move({ name: "create" })}
+              onCreated={() => move({ name: "tab", tab: "home" })}
             />
           ) : null}
           {screen.name === "ledger" ? (
-            <LedgerPage snap={snap} onBack={() => setScreen({ name: "tab", tab: "home" })} />
+            <LedgerPage snap={snap} onBack={() => move({ name: "tab", tab: "home" })} />
           ) : null}
           {screen.name === "sheet" ? (
             <CheckSheet
@@ -168,7 +187,7 @@ export function App() {
               error={error}
               onClose={() => {
                 setError("");
-                setScreen({ name: "tab", tab: "home" });
+                move({ name: "tab", tab: "home" });
               }}
               onSubmit={async (raw) => {
                 setError("");
@@ -192,7 +211,7 @@ export function App() {
         <TabBar
           tab={tab}
           dot={Boolean(snap?.pendingBoxes)}
-          onChange={(next) => setScreen({ name: "tab", tab: next })}
+          onChange={(next) => move({ name: "tab", tab: next })}
         />
       ) : null}
     </div>
@@ -319,10 +338,11 @@ function TabBar({ tab, dot, onChange }: { tab: Tab; dot: boolean; onChange: (tab
   );
 }
 
-function applyTheme(theme: Snapshot["theme"]) {
+function applyTheme(theme: Snapshot["theme"], reduceMotion: boolean) {
   const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   const dark = theme === "dark" || (theme === "system" && systemDark);
   document.documentElement.dataset.theme = dark ? "dark" : "light";
+  document.documentElement.dataset.reduce = reduceMotion ? "1" : "0";
   const color = dark ? "#0E1014" : "#F7F4EF";
   document
     .querySelectorAll('meta[name="theme-color"]')
