@@ -501,6 +501,16 @@ export async function readSnapshot(now = Date.now()): Promise<Snapshot> {
   const dueToday = goalCards.filter((goal) => goal.dueToday).length;
   const remain = goalCards.filter((goal) => goal.dueToday && !goal.doneToday).length;
   const boxRows = boxes as unknown as BoxRow[];
+  const boxViews = boxRows
+    .map((box) => ({
+      id: box.id,
+      opened: Boolean(box.openedAt),
+      resultName: box.resultName,
+      resultRarity: box.resultRarity,
+      guaranteed: box.guaranteed,
+      createdAt: box.createdAt,
+    }))
+    .sort((a, b) => b.createdAt - a.createdAt);
   const opened = boxRows
     .filter((box) => box.openedAt)
     .sort((a, b) => (b.openedAt ?? 0) - (a.openedAt ?? 0));
@@ -518,22 +528,13 @@ export async function readSnapshot(now = Date.now()): Promise<Snapshot> {
     remain,
     allClear: dueToday > 0 && remain === 0,
     goals: goalCards,
-    pendingBoxes: boxRows.filter((box) => !box.openedAt).length,
+    pendingBoxes: boxViews.filter((box) => !box.opened).length,
     recent: opened[0]?.resultName
       ? { name: opened[0].resultName, rarity: opened[0].resultRarity ?? "common" }
       : null,
     ledger: [...ledger].sort((a, b) => b.at - a.at),
     pool: pool as unknown as PoolItem[],
-    boxes: boxRows
-      .map((box) => ({
-        id: box.id,
-        opened: Boolean(box.openedAt),
-        resultName: box.resultName,
-        resultRarity: box.resultRarity,
-        guaranteed: box.guaranteed,
-        createdAt: box.createdAt,
-      }))
-      .sort((a, b) => b.createdAt - a.createdAt),
+    boxes: boxViews,
     pity: Number(wallet?.pity ?? 0),
     theme: prefs.theme,
     unit: prefs.weightUnit,

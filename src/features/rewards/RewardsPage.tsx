@@ -18,7 +18,8 @@ export function RewardsPage({ snap, onChanged }: { snap: Snapshot; onChanged: ()
     rarity: string;
     guaranteed: boolean;
   } | null>(null);
-  const pending = snap.boxes.filter((box) => !box.opened);
+  const pendingCount = snap.pendingBoxes;
+  const nextBox = snap.boxes.find((box) => !box.opened);
   const scan = scanBanned(name);
   const counts = Object.fromEntries(
     ORDER.map((item) => [
@@ -33,8 +34,8 @@ export function RewardsPage({ snap, onChanged }: { snap: Snapshot; onChanged: ()
   );
 
   async function openNext() {
-    const box = pending[0];
-    if (!box) return;
+    const box = nextBox;
+    if (!box || pendingCount <= 0) return;
     setError("");
     const result = await openBox(box.id);
     const rarity = result.resultRarity ?? "common";
@@ -89,15 +90,17 @@ export function RewardsPage({ snap, onChanged }: { snap: Snapshot; onChanged: ()
             style={{ margin: "0 auto" }}
           />
           <div className="t2 mt8">
-            {pending.length ? `里程碑盲盒 × ${pending.length}` : "还没有待开的盲盒"}
+            {pendingCount > 0 ? `还有 ${pendingCount} 个盲盒待开` : "还没有待开的盲盒"}
           </div>
           <div className="cap c2">
-            从你自己填的奖池里抽。再抽 {Math.max(0, PITY_AT - snap.pity)} 次必出史诗。
+            {pendingCount > 0
+              ? `从你自己填的奖池里抽。再抽 ${Math.max(0, PITY_AT - snap.pity)} 次必出史诗。`
+              : "过关会得到盲盒：减重每 3 斤一关，存钱到 25%、50%、75% 和 100%。"}
           </div>
           <button
             className="btn btn-primary mt16"
             type="button"
-            disabled={!pending.length}
+            disabled={pendingCount <= 0}
             onClick={() => void openNext()}
           >
             开启盲盒

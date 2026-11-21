@@ -17,7 +17,7 @@ import {
   type CheckResult,
   type Snapshot,
 } from "@/services/game";
-import { celebrate, tierOf } from "@/ui/fx";
+import { celebrate, clearCelebration, tierOf } from "@/ui/fx";
 import { Icon } from "@/ui/icons";
 import { paths } from "@/ui/paths";
 
@@ -86,6 +86,7 @@ export function App() {
   const tab = screen.name === "tab" ? screen.tab : screen.name === "ledger" ? "home" : "home";
 
   function move(next: Screen) {
+    clearCelebration();
     setToast(null);
     setToastOut(false);
     setScreen(next);

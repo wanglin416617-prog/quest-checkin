@@ -169,12 +169,6 @@ export function StatsPage({ snap }: { snap: Snapshot }) {
               </div>
             </div>
             <div className="f1">
-              <div className="cap c2">兑换</div>
-              <div className="num" style={{ fontWeight: 800 }}>
-                −{snap.flow.redeemed}
-              </div>
-            </div>
-            <div className="f1">
               <div className="cap c2">扣分</div>
               <div className="num" style={{ fontWeight: 800, color: "var(--color-amber)" }}>
                 −{snap.flow.deducted}

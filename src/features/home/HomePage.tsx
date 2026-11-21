@@ -1,3 +1,4 @@
+import { greetingOf } from "@/lib/clock";
 import type { GoalCard, Snapshot } from "@/services/game";
 import { weightLabel, yuanLabel } from "@/ui/format";
 import { Coin, Flame, Icon } from "@/ui/icons";
@@ -183,11 +184,7 @@ function Header({
         <div className="f1">
           <div className="cap c3">{snap.todayLabel}</div>
           <div className="t3 ell">
-            {snap.dueToday === 0
-              ? "今天没有到期目标"
-              : snap.remain === 0
-                ? "今日全清"
-                : `今日还差 ${snap.remain} 项`}
+            {greetingOf()} · Lv.{snap.level}
           </div>
           <div className="cap c3">
             升级还差 <span className="num">{snap.needed - snap.intoLevel}</span>
