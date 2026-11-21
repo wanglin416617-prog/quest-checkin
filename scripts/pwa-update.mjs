@@ -1,15 +1,18 @@
 import { spawn } from "node:child_process";
-import playwright from "/tmp/pw/node_modules/playwright-core/index.js";
 
 const root = new URL("..", import.meta.url).pathname;
-const nodeBin = `${process.env.HOME}/.nvm/versions/node/v26.13.1/bin`;
-const envBase = { ...process.env, PATH: `${nodeBin}:${process.env.PATH}` };
+
+async function loadChromium() {
+  const spec = process.env.PLAYWRIGHT_CORE;
+  if (spec) return (await import(spec)).chromium;
+  return (await import("playwright-core")).chromium;
+}
 
 function run(command, args, env) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       cwd: root,
-      env: { ...envBase, ...env },
+      env: { ...process.env, ...env },
       stdio: "inherit",
     });
     child.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`${command} ${code}`))));
@@ -20,7 +23,7 @@ function startPreview() {
   const child = spawn(
     "pnpm",
     ["exec", "vite", "preview", "--host", "127.0.0.1", "--port", "4174", "--strictPort"],
-    { cwd: root, env: envBase, stdio: "pipe" },
+    { cwd: root, env: process.env, stdio: "pipe" },
   );
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("preview did not start")), 20000);
@@ -35,11 +38,12 @@ function startPreview() {
   });
 }
 
-const { chromium } = playwright;
+const chromium = await loadChromium();
 await run("pnpm", ["build"], { VITE_BUILD_ID: "a" });
 const preview = await startPreview();
 const browser = await chromium.launch({
-  executablePath: "/usr/bin/google-chrome",
+  executablePath: process.env.CHROME_PATH,
+  channel: process.env.CHROME_PATH ? undefined : "chrome",
   args: ["--no-sandbox", "--disable-dev-shm-usage"],
 });
 try {
@@ -53,10 +57,7 @@ try {
   const first = await page.evaluate(() => document.documentElement.dataset.build);
   if (first !== "a") throw new Error(`first build was ${first}`);
   await run("pnpm", ["build"], { VITE_BUILD_ID: "b" });
-  await page.evaluate(async () => {
-    const registration = await navigator.serviceWorker.getRegistration();
-    await registration?.update();
-  });
+  await page.reload();
   await page.getByText("有新版本可用").waitFor({ timeout: 15000 });
   await page.getByRole("button", { name: "立即更新" }).click();
   await page.waitForFunction(() => document.documentElement.dataset.build === "b");

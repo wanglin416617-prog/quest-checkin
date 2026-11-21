@@ -120,6 +120,8 @@ export function App() {
   function showCheck(result: CheckResult, snapNow: Snapshot) {
     const parts = [];
     if (result.points) parts.push(`+${result.points}`);
+    if (result.milestone) parts.push(`里程碑 +${result.milestone}`);
+    if (result.box) parts.push("新盲盒");
     if (result.allClear) parts.push(`今日全清 +${result.allClear}`);
     setToastOut(false);
     setToast({ text: parts.join(" · ") || "已记录", goalId: result.goalId });

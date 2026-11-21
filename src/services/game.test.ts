@@ -9,6 +9,7 @@ import {
   createSavingsGoal,
   createWeightGoal,
   deposit,
+  openBox,
   periodOf,
   readSnapshot,
   undoGoalToday,
@@ -207,5 +208,115 @@ describe("打卡、撤销与今日全清", () => {
     expect(gone.goals).toHaveLength(0);
     expect(gone.points).toBe(balanceOf(before));
     expect(gone.goalNames[id]).toBe("减重计划");
+  });
+
+  it("归档日之前的打卡仍计入总连胜和统计", async () => {
+    await resetDb();
+    const at = (day: string) => Date.parse(`${day}T04:00:00.000Z`);
+    const weight = await createWeightGoal(
+      { name: "删A", heightCm: 165, startG: 70_000, targetG: 55_000, days: 90 },
+      at("2026-11-21"),
+    );
+    const save = await createSavingsGoal(
+      {
+        name: "留B",
+        targetFen: 100_000,
+        startFen: 0,
+        kind: "fixed",
+        period: "day",
+        amountFen: 100,
+        baseFen: 0,
+        deadline: "2026-12-31",
+      },
+      at("2026-11-21"),
+    );
+    for (const day of ["2026-11-21", "2026-11-22", "2026-11-23", "2026-11-24"]) {
+      await weighIn(weight, 70_000, at(day));
+    }
+    await deposit(save, 100, at("2026-11-24"));
+    const before = await readSnapshot(at("2026-11-24"));
+    expect(before.streak).toBe(4);
+    expect(before.month.checkIns).toBe(5);
+    expect(before.month.completionPct).toBe(63);
+    expect(before.month.longestStreak).toBe(4);
+    expect(before.weekLine).toEqual({ achieved: 2, dueDays: 2 });
+    const points = before.points;
+    await archiveGoal(weight, at("2026-11-24"));
+    const after = await readSnapshot(at("2026-11-24"));
+    expect(after.goals.map((goal) => goal.name)).toEqual(["留B"]);
+    expect(after.streak).toBe(4);
+    expect(after.month.checkIns).toBe(5);
+    expect(after.month.completionPct).toBe(63);
+    expect(after.month.longestStreak).toBe(4);
+    expect(after.weekLine).toEqual({ achieved: 2, dueDays: 2 });
+    expect(after.points).toBe(points);
+  });
+
+  it("只完成过的那一天归档后，次日总连胜仍算那一天", async () => {
+    await resetDb();
+    const at = (day: string) => Date.parse(`${day}T04:00:00.000Z`);
+    const weight = await createWeightGoal(
+      { name: "删A", heightCm: 165, startG: 70_000, targetG: 55_000, days: 90 },
+      at("2026-11-21"),
+    );
+    await weighIn(weight, 70_000, at("2026-11-21"));
+    await archiveGoal(weight, at("2026-11-21"));
+    expect((await readSnapshot(at("2026-11-22"))).streak).toBe(1);
+  });
+
+  it("撤销跨过里程碑的称重时收回 +50 和未开的盲盒，再达到会重新发放", async () => {
+    await resetDb();
+    const id = await createWeightGoal(
+      { name: "减重", heightCm: 165, startG: 70_000, targetG: 55_000, days: 90 },
+      now,
+    );
+    const crossed = await weighIn(id, 68_500, now);
+    expect(crossed.milestone).toBe(50);
+    expect(crossed.box).toBe(true);
+    await undoGoalToday(id, now);
+    const undone = await readSnapshot(now);
+    expect(undone.points).toBe(0);
+    expect(undone.pendingBoxes).toBe(0);
+    const again = await weighIn(id, 68_500, now);
+    expect(again.milestone).toBe(50);
+    expect(again.box).toBe(true);
+    expect((await readSnapshot(now)).pendingBoxes).toBe(1);
+  });
+
+  it("里程碑余额不够时只收回余额，已开的盒子留下且不再发第二个", async () => {
+    await resetDb();
+    const id = await createWeightGoal(
+      { name: "减重", heightCm: 165, startG: 70_000, targetG: 55_000, days: 90 },
+      now,
+    );
+    await weighIn(id, 68_500, now);
+    const snap = await readSnapshot(now);
+    const box = snap.boxes.find((item) => !item.opened);
+    expect(box).toBeTruthy();
+    await openBox(box!.id, now);
+    await db.table("ledger").put({
+      id: "spend",
+      at: now + 10,
+      kind: "points",
+      delta: -(snap.points - 30),
+      reason: "redeem",
+    });
+    await undoGoalToday(id, now + 20);
+    const afterUndo = await readSnapshot(now + 20);
+    const milestoneUndo = afterUndo.ledger.filter(
+      (entry) => entry.reason === "undo" && entry.awardKey === `milestone:${id}:w1`,
+    );
+    expect(milestoneUndo.reduce((sum, entry) => sum + entry.delta, 0)).toBe(-30);
+    expect(afterUndo.boxes.filter((item) => item.opened)).toHaveLength(1);
+    const again = await weighIn(id, 68_500, now + 30);
+    expect(again.milestone).toBe(30);
+    expect(again.box).toBe(false);
+    const finalSnap = await readSnapshot(now + 30);
+    expect(finalSnap.boxes).toHaveLength(1);
+    expect(
+      finalSnap.ledger
+        .filter((entry) => entry.awardKey === `milestone:${id}:w1` && entry.kind === "points")
+        .reduce((sum, entry) => sum + entry.delta, 0),
+    ).toBe(50);
   });
 });

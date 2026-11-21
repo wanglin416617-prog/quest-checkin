@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { greetingOf } from "@/lib/clock";
 import type { GoalCard, Snapshot } from "@/services/game";
 import { weightLabel, yuanLabel } from "@/ui/format";
@@ -72,7 +73,7 @@ export function HomePage({
     );
   }
   return (
-    <div className="scroll home-s" data-screen="home" style={{ paddingBottom: 12 }}>
+    <div className="scroll home-s" data-screen="home" style={{ paddingBottom: 8 }}>
       <Header snap={snap} ratio={ratio} ring={ring} onLedger={onLedger} />
       {snap.allClear ? (
         <div className="card sm mt10" data-testid="all-clear">
@@ -82,7 +83,7 @@ export function HomePage({
           </div>
         </div>
       ) : null}
-      <div className="sec-h" style={{ margin: "14px 2px 8px" }}>
+      <div className="sec-h" style={{ margin: "8px 2px" }}>
         <div className="t3">
           今日目标{" "}
           <span className="c3 num" style={{ fontWeight: 500 }}>
@@ -238,7 +239,7 @@ function WeightCard({
   const target = Math.max(0, (goal.startG ?? 0) - (goal.targetG ?? 0));
   const lead = goal.leadG ?? 0;
   return (
-    <div className="card" style={{ padding: "12px 14px 10px" }}>
+    <div className="card goal-card">
       <div className="row g10">
         <div className="tile sm g-teal">
           <img src={`${base}icons/goals/glyph/weight.svg`} alt="" width={18} height={18} />
@@ -249,16 +250,6 @@ function WeightCard({
           </div>
           <div className="cap c2">连胜 {goal.streak} 天</div>
         </div>
-        {goal.doneToday ? (
-          <button className="btn btn-secondary xs" type="button" onClick={onUndo}>
-            撤销
-          </button>
-        ) : (
-          <button className="btn btn-primary xs" type="button" onClick={onWeigh}>
-            <Icon d={paths.plus} size={15} />
-            称重
-          </button>
-        )}
       </div>
       <div className="row g4 mt8 wrap" style={{ alignItems: "baseline" }}>
         <span className="callout c2">已减</span>
@@ -274,7 +265,22 @@ function WeightCard({
         {lead >= 0 ? "领先" : "落后"}计划 {weightLabel(Math.abs(lead), unit)}{" "}
         {unit === "jin" ? "斤" : "kg"}
       </div>
-      <GoalActions onEdit={onEdit} onDelete={onDelete} />
+      <GoalActions
+        onEdit={onEdit}
+        onDelete={onDelete}
+        action={
+          goal.undoToday ? (
+            <button className="btn btn-secondary xs" type="button" onClick={onUndo}>
+              撤销
+            </button>
+          ) : (
+            <button className="btn btn-primary xs" type="button" onClick={onWeigh}>
+              <Icon d={paths.plus} size={15} />
+              称重
+            </button>
+          )
+        }
+      />
     </div>
   );
 }
@@ -306,7 +312,7 @@ function SavingsCard({
             : "jar-0-0";
   const lead = goal.leadFen ?? 0;
   return (
-    <div className="card" style={{ padding: "12px 14px" }}>
+    <div className="card goal-card">
       <div className="row g12">
         <img src={`${base}icons/jars/${jar}.svg`} alt="" width={56} height={56} />
         <div className="f1">
@@ -345,23 +351,36 @@ function SavingsCard({
             {lead >= 0 ? "领先" : "落后"} ¥{yuanLabel(Math.abs(lead))}
           </span>
         </div>
-        {goal.doneToday ? (
-          <button className="btn btn-secondary xs" type="button" onClick={onUndo}>
-            撤销
-          </button>
-        ) : (
-          <button className="btn btn-secondary xs" type="button" onClick={onDeposit}>
-            <Icon d={paths.plus} size={15} />
-            存入
-          </button>
-        )}
       </div>
-      <GoalActions onEdit={onEdit} onDelete={onDelete} />
+      <GoalActions
+        onEdit={onEdit}
+        onDelete={onDelete}
+        action={
+          goal.undoToday ? (
+            <button className="btn btn-secondary xs" type="button" onClick={onUndo}>
+              撤销
+            </button>
+          ) : goal.dueToday && !goal.doneToday ? (
+            <button className="btn btn-secondary xs" type="button" onClick={onDeposit}>
+              <Icon d={paths.plus} size={15} />
+              存入
+            </button>
+          ) : null
+        }
+      />
     </div>
   );
 }
 
-function GoalActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+function GoalActions({
+  onEdit,
+  onDelete,
+  action,
+}: {
+  onEdit: () => void;
+  onDelete: () => void;
+  action: ReactNode;
+}) {
   return (
     <div className="row g8 mt8">
       <button className="btn btn-secondary xs" type="button" onClick={onEdit}>
@@ -370,6 +389,8 @@ function GoalActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () =>
       <button className="btn btn-ghost xs" type="button" onClick={onDelete}>
         删除
       </button>
+      <span className="f1" />
+      {action}
     </div>
   );
 }

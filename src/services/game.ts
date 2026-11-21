@@ -96,6 +96,8 @@ export interface GoalRow {
   deadline?: DateKey;
   createdAt: number;
   order: number;
+  /** 归档时刻。这一天仍参与历史，之后不再算到期或完成。 */
+  archivedAt?: number;
 }
 
 interface WeighRow {
@@ -136,6 +138,8 @@ export interface GoalCard {
   type: "weightLoss" | "savings";
   doneToday: boolean;
   dueToday: boolean;
+  /** 今天有一条还没撤销的称重或存款，才能撤销 */
+  undoToday: boolean;
   streak: number;
   ratio: number;
   currentG?: number;
@@ -208,6 +212,7 @@ export interface CheckResult {
   goalId: string;
   points: number;
   allClear: number;
+  milestone: number;
   streak: number;
   leveled: boolean;
   box: boolean;
@@ -266,10 +271,10 @@ function aliveDeposits(rows: DepositRow[], goalId: string): DepositRow[] {
 }
 
 function inRange(goal: GoalRow, day: DateKey): boolean {
-  if (goal.status !== "active") return false;
   if (day < goal.startDate) return false;
   if (goal.deadline && day > goal.deadline) return false;
-  return true;
+  if (goal.archivedAt) return day <= todayKey(goal.archivedAt);
+  return goal.status === "active";
 }
 
 function saveCfg(goal: GoalRow): SaveCfg {
@@ -515,6 +520,7 @@ function cards(list: GoalRow[], w: WeighRow[], d: DepositRow[], today: DateKey):
           doneToday: cell.done,
           dueToday: cell.due,
           streak: weighStreak(w, goal.id, today),
+          undoToday: aliveWeighs(w, goal.id).some((row) => row.date === today),
           streakUnit: "天",
           ratio: Math.min(1, lost / span),
           currentG: current,
@@ -538,6 +544,7 @@ function cards(list: GoalRow[], w: WeighRow[], d: DepositRow[], today: DateKey):
         doneToday: cell.done,
         dueToday: cell.due,
         streak: savingsStreak(goal, d, today),
+        undoToday: aliveDeposits(d, goal.id).some((row) => row.date === today),
         streakUnit: kind === "week" ? "周" : kind === "month" ? "月" : "天",
         ratio: cfg.targetFen > 0 ? Math.min(1, total / cfg.targetFen) : 0,
         savedFen: total,
@@ -800,15 +807,7 @@ async function syncAllClear(ledger: LedgerEntry[], today: DateKey, now: number):
   return 0;
 }
 
-async function grantMilestones(
-  goal: GoalRow,
-  ledger: LedgerEntry[],
-  w: WeighRow[],
-  d: DepositRow[],
-  now: number,
-): Promise<boolean> {
-  const boxes = (await T("lootBoxes").toArray()) as unknown as BoxRow[];
-  const keys: string[] = [];
+function milestoneKeys(goal: GoalRow, w: WeighRow[], d: DepositRow[]): string[] {
   if (goal.type === "weightLoss") {
     const cfg = weightCfg(goal);
     const series = aliveWeighs(w, goal.id);
@@ -816,30 +815,55 @@ async function grantMilestones(
       ? series.sort((a, b) => (a.date < b.date ? -1 : 1))[series.length - 1]!.g
       : cfg.startG;
     const { reached } = milestonesReached(cfg.startG, current, cfg.targetG);
-    for (let step = 1; step <= reached; step += 1) keys.push(`w${step}`);
-  } else {
-    const cfg = saveCfg(goal);
-    const saved =
-      cfg.startFen + aliveDeposits(d, goal.id).reduce((sum, row) => sum + row.amountFen, 0);
-    for (const mark of savingsMilestones(saved, cfg.targetFen)) keys.push(`s${mark}`);
+    return Array.from({ length: reached }, (_, index) => `w${index + 1}`);
   }
-  let created = false;
-  for (const key of keys) {
-    const awardKey = `milestone:${goal.id}:${key}`;
-    const award = grantPoints(ledger, awardKey, "milestone", MILESTONE_BONUS, now);
-    grantXp(ledger, awardKey, "milestone", award, now);
+  const cfg = saveCfg(goal);
+  const saved =
+    cfg.startFen + aliveDeposits(d, goal.id).reduce((sum, row) => sum + row.amountFen, 0);
+  return savingsMilestones(saved, cfg.targetFen).map((mark) => `s${mark}`);
+}
+
+/** 按当前进度发放或收回里程碑。未开的盒子随收回删掉；已开的盒子留着，也不再发第二个。 */
+async function syncMilestones(
+  goal: GoalRow,
+  ledger: LedgerEntry[],
+  w: WeighRow[],
+  d: DepositRow[],
+  now: number,
+): Promise<{ points: number; box: boolean }> {
+  const boxes = (await T("lootBoxes").toArray()) as unknown as BoxRow[];
+  const reached = new Set(milestoneKeys(goal, w, d));
+  const prefix = `milestone:${goal.id}:`;
+  let points = 0;
+  let box = false;
+  const removed = new Set<string>();
+  for (const item of boxes) {
+    if (!item.sourceRef?.startsWith(`box:${prefix}`)) continue;
+    const step = item.sourceRef.slice(`box:${prefix}`.length);
+    if (reached.has(step)) continue;
+    reclaim(ledger, `${prefix}${step}`, now);
+    if (!item.openedAt) {
+      await T("lootBoxes").delete(item.id);
+      removed.add(item.id);
+    }
+  }
+  for (const key of reached) {
+    const awardKey = `${prefix}${key}`;
+    points += grantPoints(ledger, awardKey, "milestone", MILESTONE_BONUS, now);
+    grantXp(ledger, awardKey, "milestone", MILESTONE_BONUS, now);
     const sourceRef = `box:${awardKey}`;
-    if (!boxes.some((box) => box.sourceRef === sourceRef)) {
+    const exists = boxes.some((item) => item.sourceRef === sourceRef && !removed.has(item.id));
+    if (!exists) {
       await T("lootBoxes").put({
         id: uid(),
         source: "milestone",
         sourceRef,
         createdAt: now,
       } as unknown as Rec);
-      created = true;
+      box = true;
     }
   }
-  return created;
+  return { points, box };
 }
 
 export async function weighIn(
@@ -875,12 +899,20 @@ export async function weighIn(
     const key = `weighIn:${goalId}:${today}`;
     const points = grantPoints(ledger, key, "weighIn", WEIGH_IN_POINTS, now);
     grantXp(ledger, key, "weighIn", points, now);
-    const box = await grantMilestones(goal, ledger, await weighs(), await deposits(), now);
+    const mile = await syncMilestones(goal, ledger, await weighs(), await deposits(), now);
     const allClear = await syncAllClear(ledger, today, now);
     await flush(ledger, mark);
     const streak = weighStreak(await weighs(), goalId, today);
     const level = levelFromXp(balanceOf(ledger, "xp")).level;
-    return { goalId, points, allClear, streak, leveled: level > xpBefore, box };
+    return {
+      goalId,
+      points,
+      allClear,
+      milestone: mile.points,
+      streak,
+      leveled: level > xpBefore,
+      box: mile.box,
+    };
   });
 }
 
@@ -929,7 +961,7 @@ export async function deposit(
         : 0;
     const points = grantPoints(ledger, `deposit:${goalId}:${period.key}`, "deposit", target, now);
     grantXp(ledger, `deposit:${goalId}:${period.key}`, "deposit", points, now);
-    const box = await grantMilestones(goal, ledger, await weighs(), await deposits(), now);
+    const mile = await syncMilestones(goal, ledger, await weighs(), await deposits(), now);
     const allClear = await syncAllClear(ledger, today, now);
     await flush(ledger, mark);
     const level = levelFromXp(balanceOf(ledger, "xp")).level;
@@ -937,9 +969,10 @@ export async function deposit(
       goalId,
       points,
       allClear,
+      milestone: mile.points,
       streak: streakAfter.current,
       leveled: level > xpBefore,
-      box,
+      box: mile.box,
     };
   });
 }
@@ -957,6 +990,7 @@ export async function undoGoalToday(goalId: string, now = Date.now()): Promise<v
       );
       if (!row) return;
       await T("weighIns").update(row.id, { undoneAt: now });
+      await syncMilestones(goal, ledger, await weighs(), await deposits(), now);
       reclaim(ledger, `weighIn:${goalId}:${today}`, now);
       if (row.streakBefore) await T("streaks").put(row.streakBefore as unknown as Rec);
     } else {
@@ -966,6 +1000,7 @@ export async function undoGoalToday(goalId: string, now = Date.now()): Promise<v
       const row = rows[0];
       if (!row) return;
       await T("deposits").update(row.id, { undoneAt: now });
+      await syncMilestones(goal, ledger, await weighs(), await deposits(), now);
       const cfg = saveCfg(goal);
       const period = periodOf(cfg, goal.startDate, today);
       const sumAfter = depositSum(await deposits(), goalId, period.key, goal.startDate, cfg);
@@ -1139,10 +1174,10 @@ export async function updateGoal(
   });
 }
 
-export async function archiveGoal(id: string): Promise<void> {
+export async function archiveGoal(id: string, now = Date.now()): Promise<void> {
   const goal = (await T("goals").get(id)) as unknown as GoalRow | undefined;
   if (!goal) throw new Error("找不到目标");
-  await T("goals").update(id, { status: "archived" });
+  await T("goals").update(id, { status: "archived", archivedAt: now });
 }
 
 export async function patchSettings(patch: Partial<SettingsRow>): Promise<void> {

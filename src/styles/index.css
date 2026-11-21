@@ -80,6 +80,10 @@ button.pill {
   border-radius: 11px;
   background: transparent;
   box-shadow: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   font-size: 14px;
   font-weight: 600;
   color: var(--color-text-2);
@@ -92,7 +96,7 @@ button.pill {
 }
 
 html[data-theme="dark"] .seg {
-  background: var(--color-surface);
+  background: var(--color-bg);
 }
 
 html[data-theme="dark"] .seg > button.on {
@@ -350,4 +354,18 @@ html[data-reduce="1"] .toast.out {
 .splash img:first-child {
   border-radius: 28px;
   box-shadow: var(--shadow-glow-brand);
+}
+
+.goal-card {
+  padding: 10px 12px;
+}
+
+@media (max-height: 700px) {
+  .home-s .goal-card {
+    padding: 8px 10px;
+  }
+  .home-s .goal-card .num {
+    font-size: 20px !important;
+    line-height: 24px !important;
+  }
 }
