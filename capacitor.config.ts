@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "app.questcheckin.twa",
-  appName: "小目标闯关",
+  appId: "com.wanglin.questcheckin",
+  appName: "共同的努力",
   webDir: "dist",
   android: {
     allowMixedContent: false,

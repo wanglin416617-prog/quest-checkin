@@ -1,4 +1,5 @@
-export function Icon({ d, size = 22 }: { d: string; size?: number }) {
+export function Icon({ d, size = 22 }: { d: string | readonly string[]; size?: number }) {
+  const parts = Array.isArray(d) ? d : [d];
   return (
     <svg
       className="ic"
@@ -12,7 +13,9 @@ export function Icon({ d, size = 22 }: { d: string; size?: number }) {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d={d} />
+      {parts.map((part) => (
+        <path key={part} d={part} />
+      ))}
     </svg>
   );
 }

@@ -13,7 +13,11 @@ export function RewardsPage({ snap, onChanged }: { snap: Snapshot; onChanged: ()
   const [name, setName] = useState("");
   const [rarity, setRarity] = useState<Rarity>("common");
   const [error, setError] = useState("");
-  const [opening, setOpening] = useState<string | null>(null);
+  const [opening, setOpening] = useState<{
+    name: string;
+    rarity: string;
+    guaranteed: boolean;
+  } | null>(null);
   const pending = snap.boxes.filter((box) => !box.opened);
   const scan = scanBanned(name);
   const counts = Object.fromEntries(
@@ -33,13 +37,18 @@ export function RewardsPage({ snap, onChanged }: { snap: Snapshot; onChanged: ()
     if (!box) return;
     setError("");
     const result = await openBox(box.id);
-    setOpening(result.resultName ?? "盲盒");
+    const rarity = result.resultRarity ?? "common";
+    setOpening({
+      name: result.resultName ?? "盲盒",
+      rarity,
+      guaranteed: Boolean(result.guaranteed),
+    });
     celebrate(
-      result.guaranteed || result.resultRarity === "legendary"
+      result.guaranteed || rarity === "legendary"
         ? "legendary"
-        : result.resultRarity === "epic"
+        : rarity === "epic"
           ? "epic"
-          : result.resultRarity === "rare"
+          : rarity === "rare"
             ? "rare"
             : "normal",
       snap.reduceMotion,
@@ -94,7 +103,13 @@ export function RewardsPage({ snap, onChanged }: { snap: Snapshot; onChanged: ()
             开启盲盒
           </button>
           {opening ? (
-            <div className="note info mt12">开出了 {opening}。刷新后结果不变。</div>
+            <div className="card mt12" data-testid="loot-result">
+              <span className={`chip ${opening.rarity}`}>
+                {RARITY_LABEL[opening.rarity] ?? opening.rarity}
+              </span>
+              <div className="t2 mt8">{opening.name}</div>
+              <div className="cap c2 mt4">{opening.guaranteed ? "保底史诗" : "刷新后结果不变"}</div>
+            </div>
           ) : null}
         </div>
         <div className="sec-h">

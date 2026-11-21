@@ -1,4 +1,4 @@
-package app.questcheckin.twa;
+package com.wanglin.questcheckin;
 
 import com.getcapacitor.BridgeActivity;
 

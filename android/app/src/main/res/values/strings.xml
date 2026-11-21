@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">小目标闯关</string>
-    <string name="title_activity_main">小目标闯关</string>
-    <string name="package_name">app.questcheckin.twa</string>
-    <string name="custom_url_scheme">app.questcheckin.twa</string>
+    <string name="app_name">共同的努力</string>
+    <string name="title_activity_main">共同的努力</string>
+    <string name="package_name">com.wanglin.questcheckin</string>
+    <string name="custom_url_scheme">com.wanglin.questcheckin</string>
 </resources>

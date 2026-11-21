@@ -2,6 +2,7 @@ import { useEffect, useState, type ComponentType } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { parseWeightToGrams, parseYuanToFen, type WeightUnit } from "@/domain/units";
 import { HomePage } from "@/features/home/HomePage";
+import { LevelsPage } from "@/features/map/LevelsPage";
 import { Wizard } from "@/features/goals/Wizard";
 import { LedgerPage } from "@/features/ledger/LedgerPage";
 import { RewardsPage } from "@/features/rewards/RewardsPage";
@@ -105,6 +106,20 @@ export function App() {
           <div className="body c2 mt12">每天一点，一起坚持</div>
         </button>
       ) : null}
+      {!splash && toast ? (
+        <div className="toast" role="status">
+          <span>{toast.text}</span>
+          <button
+            type="button"
+            onClick={() => {
+              void undoGoalToday(toast.goalId);
+              setToast(null);
+            }}
+          >
+            撤销
+          </button>
+        </div>
+      ) : null}
       {!splash && snap ? (
         <main style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
           {screen.name === "tab" && screen.tab === "home" ? (
@@ -126,10 +141,7 @@ export function App() {
             <SettingsPage snap={snap} onChanged={() => undefined} />
           ) : null}
           {screen.name === "tab" && screen.tab === "map" ? (
-            <div className="scroll" data-screen="map">
-              <div className="t1">关卡</div>
-              <div className="body c2 mt8">关卡地图和成就还没开放。先把今天的目标打完。</div>
-            </div>
+            <LevelsPage snap={snap} onCreate={() => setScreen({ name: "create" })} />
           ) : null}
           {screen.name === "create" ? (
             <TypePick
@@ -175,20 +187,6 @@ export function App() {
         </main>
       ) : null}
       {!splash && !snap ? <div className="scroll">正在打开本地数据…</div> : null}
-      {toast ? (
-        <div className="toast" role="status">
-          <span>{toast.text}</span>
-          <button
-            type="button"
-            onClick={() => {
-              void undoGoalToday(toast.goalId);
-              setToast(null);
-            }}
-          >
-            撤销
-          </button>
-        </div>
-      ) : null}
       {Qa && snap ? <Qa pity={snap.pity} onChanged={() => undefined} /> : null}
       {!splash && screen.name === "tab" ? (
         <TabBar
@@ -296,9 +294,9 @@ function CheckSheet({
 }
 
 function TabBar({ tab, dot, onChange }: { tab: Tab; dot: boolean; onChange: (tab: Tab) => void }) {
-  const items: { id: Tab; label: string; icon: string }[] = [
+  const items: { id: Tab; label: string; icon: string | readonly string[] }[] = [
     { id: "home", label: "今日", icon: paths.home },
-    { id: "map", label: "关卡", icon: paths.chart },
+    { id: "map", label: "关卡", icon: paths.map },
     { id: "rewards", label: "奖励", icon: paths.gift },
     { id: "stats", label: "统计", icon: paths.chart },
     { id: "settings", label: "设置", icon: paths.gear },

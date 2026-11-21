@@ -7,6 +7,59 @@ body,
   height: 100%;
 }
 
+button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  appearance: none;
+  cursor: pointer;
+  text-align: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button.tab {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  color: var(--color-text-3);
+}
+
+button.tab.on {
+  color: var(--color-brand-text);
+}
+
+button.icon-btn {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: var(--color-text);
+}
+
+button.link {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: var(--color-brand-text);
+}
+
+button.card {
+  display: flex;
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  border: 0;
+}
+
+button.chip,
+button.tog,
+button.pill {
+  border: 0;
+}
+
 .field input,
 .qa-panel input,
 .sheet input,
@@ -23,7 +76,10 @@ body,
 .seg > button {
   flex: 1;
   height: 36px;
+  border: 0;
   border-radius: 11px;
+  background: transparent;
+  box-shadow: none;
   font-size: 14px;
   font-weight: 600;
   color: var(--color-text-2);
@@ -44,11 +100,10 @@ body,
 }
 
 .toast {
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  top: 12px;
-  z-index: 60;
+  position: relative;
+  flex: none;
+  margin: 8px 16px 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;

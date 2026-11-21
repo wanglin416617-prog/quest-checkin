@@ -251,12 +251,14 @@ function WeightCard({
           </button>
         )}
       </div>
-      <div className="row g4 mt8" style={{ alignItems: "baseline" }}>
+      <div className="row g4 mt8 wrap" style={{ alignItems: "baseline" }}>
+        <span className="callout c2">已减</span>
         <span className="num" style={{ font: "800 28px/32px var(--font-num)" }}>
           {weightLabel(lost, unit)}
         </span>
+        <span className="callout c2">{unit === "jin" ? "斤" : "kg"}</span>
         <span className="callout c2">
-          / {weightLabel(target, unit)} {unit === "jin" ? "斤" : "kg"}
+          / 目标 {weightLabel(target, unit)} {unit === "jin" ? "斤" : "kg"}
         </span>
       </div>
       <div className={`chip mt4 ${lead >= 0 ? "ok" : "amber"}`}>
