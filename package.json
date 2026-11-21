@@ -2,7 +2,7 @@
   "name": "quest-checkin",
   "private": true,
   "version": "0.1.0",
-  "description": "小目标闯关：本机离线闯关打卡 PWA / 安卓 APK",
+  "description": "共同的努力：本机离线闯关打卡 PWA",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@12.21.0",
@@ -13,7 +13,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:qa": "VITE_QA_TOOLS=1 vite build",
     "preview": "vite preview",
+    "preview:qa": "VITE_QA_TOOLS=1 vite build && vite preview --host 127.0.0.1 --port 4173",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run",

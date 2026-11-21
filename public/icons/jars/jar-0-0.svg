@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="art jar jar-0" width="128" height="128" viewBox="0 0 64 64" aria-label="存钱罐 0%">
+<defs>
+<clipPath id="j49c"><path d="M15 19h34c2 0 3 1.6 3 3.6V52c0 3-2.4 5-5.4 5H17.4C14.4 57 12 55 12 52V22.6C12 20.6 13 19 15 19z"/></clipPath>
+<linearGradient id="j49f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD966"/><stop offset="1" stop-color="#F0A500"/></linearGradient>
+<linearGradient id="j49gl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".35" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-color="#fff" stop-opacity=".3"/></linearGradient>
+</defs>
+
+<ellipse cx="32" cy="59" rx="20" ry="2.6" fill="#000" opacity=".12"/>
+<path d="M15 19h34c2 0 3 1.6 3 3.6V52c0 3-2.4 5-5.4 5H17.4C14.4 57 12 55 12 52V22.6C12 20.6 13 19 15 19z" fill="#DDEBF2" fill-opacity=".55"/>
+<g clip-path="url(#j49c)">
+
+
+</g>
+<path d="M15 19h34c2 0 3 1.6 3 3.6V52c0 3-2.4 5-5.4 5H17.4C14.4 57 12 55 12 52V22.6C12 20.6 13 19 15 19z" fill="url(#j49gl)" stroke="#9FB6C4" stroke-width="1.4"/>
+<path d="M17 24v24" stroke="#fff" stroke-width="2.6" stroke-linecap="round" opacity=".75"/>
+<rect x="13" y="10" width="38" height="9" rx="3" fill="#FF8A3D"/><rect x="13" y="10" width="38" height="3.4" rx="1.7" fill="#FFB27A"/>
+<rect x="26" y="12.6" width="12" height="2.4" rx="1.2" fill="#B84300"/>
+
+</svg>

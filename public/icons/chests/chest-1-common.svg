@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="art chest chest-common" width="128" height="128" viewBox="0 0 64 64" aria-label="普通宝箱">
+<defs>
+<linearGradient id="c41b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8C95A6"/><stop offset="1" stop-color="#5E6778"/></linearGradient>
+<linearGradient id="c41l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A3ABBA"/><stop offset="1" stop-color="#6F788A"/></linearGradient>
+<linearGradient id="c41t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E4E7EC"/><stop offset="1" stop-color="#B7BDC8"/></linearGradient>
+<radialGradient id="c41g" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="rgba(138,148,166,0.0)"/><stop offset="1" stop-color="rgba(138,148,166,0)"/></radialGradient>
+<radialGradient id="c41in" cx=".5" cy="1" r="1"><stop offset="0" stop-color="#FFF6C8"/><stop offset="1" stop-color="#FFB800" stop-opacity="0"/></radialGradient>
+</defs>
+
+<ellipse cx="32" cy="57" rx="22" ry="3.2" fill="#000" opacity=".14"/>
+
+<rect x="10" y="27" width="44" height="28" rx="4.5" fill="url(#c41b)"/>
+<rect x="10" y="27" width="44" height="3" fill="#000" opacity=".12"/>
+<rect x="18" y="27" width="5" height="28" fill="url(#c41t)" opacity=".9"/>
+<rect x="41" y="27" width="5" height="28" fill="url(#c41t)" opacity=".9"/>
+<rect x="10" y="50" width="44" height="5" rx="2.5" fill="#000" opacity=".12"/>
+<path d="M10 28c0-11 9.5-15 22-15s22 4 22 15z" fill="url(#c41l)"/><path d="M14 22c2-4 8-6 18-6" stroke="#fff" stroke-opacity=".45" stroke-width="2.4" stroke-linecap="round" fill="none"/><rect x="18" y="14.5" width="5" height="13.5" fill="url(#c41t)" opacity=".9"/><rect x="41" y="14.5" width="5" height="13.5" fill="url(#c41t)" opacity=".9"/>
+<rect x="9" y="25.5" width="46" height="5" rx="2.2" fill="url(#c41t)"/>
+<rect x="26.5" y="26" width="11" height="13" rx="3" fill="url(#c41t)" stroke="#5E6778" stroke-opacity=".35"/>
+<circle cx="32" cy="31.2" r="1.8" fill="#5E6778"/><rect x="31.2" y="31.5" width="1.6" height="4" rx=".8" fill="#5E6778"/>
+
+
+
+</svg>

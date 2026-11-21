@@ -37,5 +37,11 @@ export default defineConfig(
       ],
     },
   },
+  {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
   eslintConfigPrettier,
 );
