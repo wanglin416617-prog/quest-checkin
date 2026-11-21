@@ -78,6 +78,50 @@ export function applyRetroToStreak(s: StreakState): StreakState {
   return s;
 }
 
+export type PeriodKind = "day" | "week" | "month";
+
+/** 上一周期的锚点：日 = 昨天，周 = 上周一，月 = 上月 1 日。 */
+export function previousAnchor(kind: PeriodKind, anchor: DateKey): DateKey {
+  if (kind === "day") return addDays(anchor, -1);
+  if (kind === "week") return addDays(anchor, -7);
+  const year = Number(anchor.slice(0, 4));
+  const month = Number(anchor.slice(5, 7));
+  return month === 1 ? `${year - 1}-12-01` : `${year}-${String(month - 1).padStart(2, "0")}-01`;
+}
+
+/**
+ * 按周期打卡。连续的定义是“上一周期刚好是 previousAnchor”，不是相差 1 天。
+ * 同一周期重复调用不增加连胜。
+ */
+export function applyPeriodCheckIn(s: StreakState, anchor: string, previous: string): StreakState {
+  if (s.lastCountedPeriod === anchor) return s;
+  const continues = s.current > 0 && s.lastCountedPeriod === previous;
+  const current = continues ? s.current + 1 : 1;
+  return { ...s, current, best: Math.max(s.best, current), lastCountedPeriod: anchor };
+}
+
+/**
+ * 已完成周期里、到当前周期为止的连续个数。
+ * 当前周期还没完成时，从上一周期往回数（和总连胜“今天未结算”一样）。
+ */
+export function periodStreakCount(
+  completed: readonly string[],
+  currentAnchor: string,
+  previous: (anchor: string) => string,
+): number {
+  const done = new Set(completed);
+  let cursor = done.has(currentAnchor) ? currentAnchor : previous(currentAnchor);
+  if (!done.has(cursor)) return 0;
+  let count = 0;
+  const seen = new Set<string>();
+  while (done.has(cursor) && !seen.has(cursor)) {
+    seen.add(cursor);
+    count += 1;
+    cursor = previous(cursor);
+  }
+  return count;
+}
+
 /** 当天完成打卡（或减重“称重+饮食达标”）时调用；同一天重复调用幂等 */
 export function applyCheckIn(s: StreakState, day: DateKey): StreakState {
   if (s.lastCountedPeriod === day) return s;

@@ -5,11 +5,14 @@ import { addDays } from "@/domain/dates";
 import { week52Cumulative } from "@/domain/savingsPlan";
 import { todayKey } from "@/lib/clock";
 import {
+  archiveGoal,
   createSavingsGoal,
   createWeightGoal,
   deposit,
+  periodOf,
   readSnapshot,
   undoGoalToday,
+  updateGoal,
   weighIn,
 } from "@/services/game";
 
@@ -108,5 +111,101 @@ describe("打卡、撤销与今日全清", () => {
 
   it("52 周基数 10 元的累计是 13780 元", () => {
     expect(week52Cumulative(52, 1_000)).toBe(1_378_000);
+  });
+
+  it("周六创建的 52 周挑战按自然周计次，同一周重打不重复发分", async () => {
+    await resetDb();
+    const saturday = Date.parse("2026-11-21T04:00:00.000Z");
+    const monday = Date.parse("2026-11-23T04:00:00.000Z");
+    const nextSaturday = Date.parse("2026-11-28T04:00:00.000Z");
+    const followingMonday = Date.parse("2026-11-30T04:00:00.000Z");
+    const id = await createSavingsGoal(
+      {
+        name: "52 周",
+        targetFen: week52Cumulative(52, 1_000),
+        startFen: 0,
+        kind: "week52",
+        period: "week",
+        amountFen: 0,
+        baseFen: 1_000,
+        deadline: "2027-11-20",
+      },
+      saturday,
+    );
+    expect(
+      periodOf(
+        { targetFen: 1, startFen: 0, kind: "week52", period: "week", amountFen: 0, baseFen: 1_000 },
+        "2026-11-21",
+        "2026-11-21",
+      ),
+    ).toMatchObject({
+      key: "w52:2026-11-16",
+      planned: 1_000,
+      label: "第 1 周应存",
+    });
+    await deposit(id, 1_000, saturday);
+    const week2 = await readSnapshot(monday);
+    expect(week2.goals[0]?.periodLabel).toBe("第 2 周应存");
+    expect(week2.goals[0]?.periodFen).toBe(2_000);
+    await deposit(id, 2_000, monday);
+    await deposit(id, 1, nextSaturday);
+    await deposit(id, 3_000, followingMonday);
+    const ledger = (await db.table("ledger").toArray()) as LedgerEntry[];
+    const awards = ledger
+      .filter((entry) => entry.kind === "points" && entry.reason === "deposit")
+      .sort((a, b) => (a.awardKey ?? "").localeCompare(b.awardKey ?? ""));
+    expect(awards.map((entry) => entry.awardKey)).toEqual([
+      `deposit:${id}:w52:2026-11-16`,
+      `deposit:${id}:w52:2026-11-23`,
+      `deposit:${id}:w52:2026-11-30`,
+    ]);
+    expect(awards.map((entry) => entry.delta)).toEqual([10, 10, 12]);
+    expect((await readSnapshot(followingMonday)).goals[0]?.streak).toBe(3);
+  });
+
+  it("按周存钱的连胜按连续完成的周数算，第三周倍率是 1.2", async () => {
+    await resetDb();
+    const id = await createSavingsGoal(
+      {
+        name: "每周旅行",
+        targetFen: 2_000_000,
+        startFen: 0,
+        kind: "fixed",
+        period: "week",
+        amountFen: 1_000,
+        baseFen: 0,
+        deadline: "2027-05-01",
+      },
+      Date.parse("2026-11-21T04:00:00.000Z"),
+    );
+    await deposit(id, 1_000, Date.parse("2026-11-21T04:00:00.000Z"));
+    await deposit(id, 1_000, Date.parse("2026-11-23T04:00:00.000Z"));
+    const third = await deposit(id, 1_000, Date.parse("2026-11-30T04:00:00.000Z"));
+    expect(third.points).toBe(12);
+    expect(third.streak).toBe(3);
+  });
+
+  it("编辑从今天重画计划线，删除只归档并留下流水", async () => {
+    await resetDb();
+    const id = await createWeightGoal(
+      { name: "减重", heightCm: 165, startG: 70_000, targetG: 55_000, days: 90 },
+      now,
+    );
+    await weighIn(id, 68_000, now);
+    const before = (await db.table("ledger").toArray()) as LedgerEntry[];
+    await updateGoal(
+      id,
+      { name: "减重计划", deadline: addDays(todayKey(now), 30), targetG: 60_000 },
+      now,
+    );
+    const edited = await readSnapshot(now);
+    expect(edited.goals[0]?.name).toBe("减重计划");
+    expect(edited.goals[0]?.leadG).toBe(0);
+    expect(edited.points).toBe(balanceOf(before));
+    await archiveGoal(id);
+    const gone = await readSnapshot(now);
+    expect(gone.goals).toHaveLength(0);
+    expect(gone.points).toBe(balanceOf(before));
+    expect(gone.goalNames[id]).toBe("减重计划");
   });
 });

@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   reconcileStreak,
   applyCheckIn,
+  applyPeriodCheckIn,
+  periodStreakCount,
+  previousAnchor,
   grantWeeklyFreeze,
   applyViolationToStreak,
   applyRetroToStreak,
@@ -18,6 +21,44 @@ const s = (current: number, last: string): StreakState => ({
   current,
   best: Math.max(current, 10),
   lastCountedPeriod: last,
+});
+
+describe("按周期累计的单目标连胜", () => {
+  const blank: StreakState = { goalId: "g", current: 0, best: 0, lastCountedPeriod: "" };
+
+  it("连续三个自然周连胜 3，同一周再记不增加", () => {
+    let st = applyPeriodCheckIn(blank, "2026-11-16", previousAnchor("week", "2026-11-16"));
+    expect(st.current).toBe(1);
+    st = applyPeriodCheckIn(st, "2026-11-23", previousAnchor("week", "2026-11-23"));
+    expect(st.current).toBe(2);
+    st = applyPeriodCheckIn(st, "2026-11-23", previousAnchor("week", "2026-11-23"));
+    expect(st.current).toBe(2);
+    st = applyPeriodCheckIn(st, "2026-11-30", previousAnchor("week", "2026-11-30"));
+    expect(st.current).toBe(3);
+  });
+
+  it("跳过一周后从 1 重新计", () => {
+    let st = applyPeriodCheckIn(blank, "2026-11-16", previousAnchor("week", "2026-11-16"));
+    st = applyPeriodCheckIn(st, "2026-11-30", previousAnchor("week", "2026-11-30"));
+    expect(st.current).toBe(1);
+  });
+
+  it("按月连续，以及从已完成周期往回数", () => {
+    const count = periodStreakCount(
+      ["2026-09-01", "2026-10-01", "2026-11-01"],
+      "2026-11-01",
+      (anchor) => previousAnchor("month", anchor),
+    );
+    expect(count).toBe(3);
+    expect(
+      periodStreakCount(["2026-09-01", "2026-10-01"], "2026-11-01", (anchor) =>
+        previousAnchor("month", anchor),
+      ),
+    ).toBe(2);
+    expect(
+      periodStreakCount(["2026-09-01"], "2026-11-01", (anchor) => previousAnchor("month", anchor)),
+    ).toBe(0);
+  });
 });
 
 describe("连胜与冻结卡", () => {

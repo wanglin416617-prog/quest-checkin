@@ -4,6 +4,7 @@ import {
   requiredRates,
   week52Amount,
   week52Cumulative,
+  week52Index,
   incrementalAmount,
   incrementalCumulative,
   fixedCumulative,
@@ -36,6 +37,16 @@ describe("存钱计算", () => {
     const r = requiredRates(100000, 3);
     expect(r.dailyFen).toBe(33334);
     expect(r.weeklyFen).toBe(233334);
+  });
+  it("52 周序号按自然周，创建当周是第 1 周", () => {
+    expect(week52Index("2026-11-21", "2026-11-21")).toBe(1);
+    expect(week52Index("2026-11-21", "2026-11-22")).toBe(1);
+    expect(week52Index("2026-11-21", "2026-11-23")).toBe(2);
+    expect(week52Index("2026-11-21", "2026-11-28")).toBe(2);
+    expect(week52Index("2026-11-21", "2026-11-30")).toBe(3);
+    expect(week52Index("2026-11-23", "2026-11-23")).toBe(1);
+    expect(week52Index("2026-11-23", "2026-11-29")).toBe(1);
+    expect(week52Index("2026-11-23", "2026-11-30")).toBe(2);
   });
   it("T-$-03 还需存：存入扣减；冲动消费仅在“计入目标”时加回；下限 0", () => {
     const base = {

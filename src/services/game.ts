@@ -22,12 +22,21 @@ import {
 import {
   fixedCumulative,
   leadBehindFen,
+  requiredRates,
   savingsMilestones,
-  week52Amount,
   week52Cumulative,
+  week52Index,
 } from "@/domain/savingsPlan";
 import { leadVsPlanG as weightLead, milestonesReached } from "@/domain/pace";
-import { applyCheckIn, overallStreak, type StreakState } from "@/domain/streak";
+import {
+  applyCheckIn,
+  applyPeriodCheckIn,
+  overallStreak,
+  periodStreakCount,
+  previousAnchor,
+  type PeriodKind,
+  type StreakState,
+} from "@/domain/streak";
 import { cryptoRng } from "@/domain/rng";
 import { openLootBoxWithPity, type PoolItem, type Rarity } from "@/domain/loot";
 import { assertWeightG } from "@/domain/units";
@@ -56,6 +65,9 @@ export interface WeightCfg {
   startG: number;
   targetG: number;
   days: number;
+  /** 编辑后从这一天重画计划线，体重起点是当时的体重 */
+  planFrom?: DateKey;
+  planWeightG?: number;
 }
 
 export interface SaveCfg {
@@ -65,6 +77,10 @@ export interface SaveCfg {
   period: "day" | "week" | "month";
   amountFen: number;
   baseFen: number;
+  /** 编辑当天及以后的周期用新金额；更早的周期仍用原来的 amountFen / baseFen */
+  planFrom?: DateKey;
+  planAmountFen?: number;
+  planBaseFen?: number;
 }
 
 export interface GoalRow {
@@ -132,6 +148,11 @@ export interface GoalCard {
   leadFen?: number;
   periodFen?: number;
   periodLabel?: string;
+  streakUnit?: "天" | "周" | "月";
+  deadline?: DateKey;
+  saveKind?: SaveCfg["kind"];
+  savePeriod?: SaveCfg["period"];
+  baseFen?: number;
   weighs: { date: DateKey; g: number }[];
 }
 
@@ -180,6 +201,7 @@ export interface Snapshot {
   weekLine: { achieved: number; dueDays: number };
   goalRates: GoalRate[];
   flow: PointsFlow;
+  goalNames: Record<string, string>;
 }
 
 export interface CheckResult {
@@ -258,37 +280,41 @@ function weightCfg(goal: GoalRow): WeightCfg {
   return goal.typeConfig as WeightCfg;
 }
 
+function anchorOf(cfg: SaveCfg, day: DateKey): DateKey {
+  if (cfg.kind === "week52" || cfg.period === "week") return weekStart(day);
+  if (cfg.period === "month") return `${day.slice(0, 8)}01`;
+  return day;
+}
+
+function periodKind(cfg: SaveCfg): PeriodKind {
+  if (cfg.kind === "week52" || cfg.period === "week") return "week";
+  if (cfg.period === "month") return "month";
+  return "day";
+}
+
+function revised(cfg: SaveCfg, day: DateKey): boolean {
+  return Boolean(cfg.planFrom) && anchorOf(cfg, day) >= anchorOf(cfg, cfg.planFrom!);
+}
+
 export function periodOf(
   cfg: SaveCfg,
   start: DateKey,
   day: DateKey,
 ): { key: string; planned: number; label: string; anchor: DateKey } {
   if (cfg.kind === "week52") {
-    const week = Math.floor(diffDays(start, day) / 7) + 1;
-    const planned = week >= 1 && week <= 52 ? week52Amount(week, cfg.baseFen) : 0;
-    return {
-      key: `w52:${weekStart(day)}`,
-      planned,
-      label: `第 ${week} 周应存`,
-      anchor: weekStart(day),
-    };
+    const week = week52Index(start, day);
+    const base = revised(cfg, day) && cfg.planBaseFen != null ? cfg.planBaseFen : cfg.baseFen;
+    const planned = week >= 1 && week <= 52 ? week * base : 0;
+    const anchor = weekStart(day);
+    return { key: `w52:${anchor}`, planned, label: `第 ${week} 周应存`, anchor };
   }
-  if (cfg.period === "day")
-    return { key: `d:${day}`, planned: cfg.amountFen, label: "今天应存", anchor: day };
-  if (cfg.period === "month") {
-    return {
-      key: `m:${day.slice(0, 7)}`,
-      planned: cfg.amountFen,
-      label: "本月应存",
-      anchor: `${day.slice(0, 8)}01`,
-    };
-  }
-  return {
-    key: `w:${weekStart(day)}`,
-    planned: cfg.amountFen,
-    label: "本周应存",
-    anchor: weekStart(day),
-  };
+  const anchor = anchorOf(cfg, day);
+  const planned =
+    revised(cfg, day) && cfg.planAmountFen != null ? cfg.planAmountFen : cfg.amountFen;
+  if (cfg.period === "day") return { key: `d:${day}`, planned, label: "今天应存", anchor };
+  if (cfg.period === "month")
+    return { key: `m:${day.slice(0, 7)}`, planned, label: "本月应存", anchor };
+  return { key: `w:${anchor}`, planned, label: "本周应存", anchor };
 }
 
 function depositSum(
@@ -381,8 +407,26 @@ function weighStreak(rows: WeighRow[], goalId: string, today: DateKey): number {
 
 function plannedCumulative(cfg: SaveCfg, start: DateKey, day: DateKey): number {
   const span = Math.max(0, diffDays(start, day));
-  if (cfg.kind === "week52")
-    return week52Cumulative(Math.min(52, Math.floor(span / 7) + 1), cfg.baseFen);
+  if (cfg.kind === "week52") {
+    const week = Math.min(52, week52Index(start, day));
+    let sum = 0;
+    for (let n = 1; n <= week; n += 1) {
+      sum += periodOf(cfg, start, addDays(weekStart(start), (n - 1) * 7)).planned;
+    }
+    return sum;
+  }
+  if (cfg.planAmountFen != null && cfg.planFrom) {
+    let sum = 0;
+    const kind = periodKind(cfg);
+    let anchor = anchorOf(cfg, start);
+    const end = anchorOf(cfg, day);
+    while (anchor <= end) {
+      sum += periodOf(cfg, start, anchor).planned;
+      anchor = addDays(anchor, kind === "week" ? 7 : kind === "month" ? 32 : 1);
+      if (kind === "month") anchor = `${anchor.slice(0, 8)}01`;
+    }
+    return sum;
+  }
   const periods =
     cfg.period === "week"
       ? Math.floor(span / 7) + 1
@@ -390,6 +434,29 @@ function plannedCumulative(cfg: SaveCfg, start: DateKey, day: DateKey): number {
         ? Math.floor(span / 30) + 1
         : span + 1;
   return fixedCumulative(periods, cfg.amountFen);
+}
+
+function completedAnchors(goal: GoalRow, rows: DepositRow[]): DateKey[] {
+  const cfg = saveCfg(goal);
+  const sums = new Map<DateKey, { planned: number; sum: number }>();
+  for (const row of aliveDeposits(rows, goal.id)) {
+    const period = periodOf(cfg, goal.startDate, row.date);
+    const slot = sums.get(period.anchor) ?? { planned: period.planned, sum: 0 };
+    slot.sum += row.amountFen;
+    slot.planned = period.planned;
+    sums.set(period.anchor, slot);
+  }
+  return [...sums.entries()]
+    .filter(([, slot]) => slot.planned > 0 && slot.sum >= slot.planned)
+    .map(([anchor]) => anchor);
+}
+
+function savingsStreak(goal: GoalRow, rows: DepositRow[], today: DateKey): number {
+  const cfg = saveCfg(goal);
+  const kind = periodKind(cfg);
+  return periodStreakCount(completedAnchors(goal, rows), anchorOf(cfg, today), (anchor) =>
+    previousAnchor(kind, anchor),
+  );
 }
 
 function goalRates(list: GoalRow[], w: WeighRow[], d: DepositRow[], today: DateKey): GoalRate[] {
@@ -436,7 +503,11 @@ function cards(list: GoalRow[], w: WeighRow[], d: DepositRow[], today: DateKey):
         const current = series.length ? series[series.length - 1]!.g : cfg.startG;
         const span = Math.max(1, cfg.startG - cfg.targetG);
         const lost = Math.max(0, cfg.startG - current);
-        const dayIndex = Math.max(0, diffDays(goal.startDate, today));
+        const planFrom = cfg.planFrom ?? goal.startDate;
+        const planStart = cfg.planWeightG ?? cfg.startG;
+        const planEnd = goal.deadline ?? addDays(goal.startDate, cfg.days);
+        const planDays = Math.max(1, diffDays(planFrom, planEnd));
+        const planIndex = Math.max(0, Math.min(planDays, diffDays(planFrom, today)));
         return {
           id: goal.id,
           name: goal.name,
@@ -444,12 +515,14 @@ function cards(list: GoalRow[], w: WeighRow[], d: DepositRow[], today: DateKey):
           doneToday: cell.done,
           dueToday: cell.due,
           streak: weighStreak(w, goal.id, today),
+          streakUnit: "天",
           ratio: Math.min(1, lost / span),
           currentG: current,
           startG: cfg.startG,
           targetG: cfg.targetG,
-          leadG: weightLead(cfg.startG, cfg.targetG, cfg.days, dayIndex, current),
+          leadG: weightLead(planStart, cfg.targetG, planDays, planIndex, current),
           heightCm: cfg.heightCm,
+          deadline: goal.deadline,
           weighs: series.map((row) => ({ date: row.date, g: row.g })),
         };
       }
@@ -457,19 +530,25 @@ function cards(list: GoalRow[], w: WeighRow[], d: DepositRow[], today: DateKey):
       const saved = aliveDeposits(d, goal.id).reduce((sum, row) => sum + row.amountFen, 0);
       const total = cfg.startFen + saved;
       const period = savingsState(goal, d, today);
+      const kind = periodKind(cfg);
       return {
         id: goal.id,
         name: goal.name,
         type: goal.type,
         doneToday: cell.done,
         dueToday: cell.due,
-        streak: 0,
+        streak: savingsStreak(goal, d, today),
+        streakUnit: kind === "week" ? "周" : kind === "month" ? "月" : "天",
         ratio: cfg.targetFen > 0 ? Math.min(1, total / cfg.targetFen) : 0,
         savedFen: total,
         targetFen: cfg.targetFen,
         leadFen: leadBehindFen(saved, plannedCumulative(cfg, goal.startDate, today)),
         periodFen: period.periodFen,
         periodLabel: period.label,
+        deadline: goal.deadline,
+        saveKind: cfg.kind,
+        savePeriod: cfg.period,
+        baseFen: cfg.planBaseFen ?? cfg.baseFen,
         weighs: [],
       };
     });
@@ -544,6 +623,7 @@ export async function readSnapshot(now = Date.now()): Promise<Snapshot> {
     weekLine: thisWeekProgress(history, today),
     goalRates: goalRates(list, w, d, today),
     flow: pointsFlow(ledger, today, SHANGHAI_OFFSET_MIN),
+    goalNames: Object.fromEntries(list.map((goal) => [goal.id, goal.name])),
   };
 }
 
@@ -832,20 +912,20 @@ export async function deposit(
       ...(willComplete ? { streakBefore } : {}),
     } as unknown as Rec);
     let streakAfter = streakBefore;
-    if (willComplete && streakBefore.lastCountedPeriod !== today) {
-      streakAfter = applyCheckIn(streakBefore, today);
+    const sumAfter = beforeSum + amountFen;
+    const kind = periodKind(cfg);
+    const streakNow = savingsStreak(goal, await deposits(), today);
+    if (willComplete) {
+      streakAfter = applyPeriodCheckIn(
+        streakBefore,
+        period.anchor,
+        previousAnchor(kind, period.anchor),
+      );
       await T("streaks").put(streakAfter as unknown as Rec);
     }
-    const sumAfter = beforeSum + amountFen;
     const target =
       period.planned > 0
-        ? depositPoints(
-            goal.difficulty,
-            Math.max(1, streakAfter.current),
-            sumAfter,
-            period.planned,
-            false,
-          )
+        ? depositPoints(goal.difficulty, Math.max(1, streakNow), sumAfter, period.planned, false)
         : 0;
     const points = grantPoints(ledger, `deposit:${goalId}:${period.key}`, "deposit", target, now);
     grantXp(ledger, `deposit:${goalId}:${period.key}`, "deposit", points, now);
@@ -991,6 +1071,78 @@ export async function setPity(pity: number): Promise<void> {
     pity: 0,
   };
   await T("wallet").put({ ...wallet, pity: next });
+}
+
+export async function updateGoal(
+  id: string,
+  input: {
+    name: string;
+    deadline: DateKey;
+    targetG?: number;
+    targetFen?: number;
+    baseFen?: number;
+  },
+  now = Date.now(),
+): Promise<void> {
+  const today = todayKey(now);
+  if (input.deadline < today) throw new Error("截止日期不能早于今天");
+  const name = assertName(input.name);
+  await database.transaction("rw", database.tables, async () => {
+    const goal = (await T("goals").get(id)) as unknown as GoalRow | undefined;
+    if (!goal || goal.status === "archived") throw new Error("找不到目标");
+    if (goal.type === "weightLoss") {
+      const cfg = weightCfg(goal);
+      if (input.targetG == null || input.targetG <= 0) throw new Error("目标体重要大于 0");
+      const series = aliveWeighs(await weighs(), id).sort((a, b) => (a.date < b.date ? -1 : 1));
+      const current = series.length ? series[series.length - 1]!.g : cfg.startG;
+      if (input.targetG >= current) throw new Error("目标体重要小于现在的体重");
+      const nextCfg: WeightCfg = {
+        ...cfg,
+        targetG: input.targetG,
+        planFrom: today,
+        planWeightG: current,
+      };
+      await T("goals").update(id, { name, deadline: input.deadline, typeConfig: nextCfg });
+      return;
+    }
+    const cfg = saveCfg(goal);
+    if (cfg.kind === "week52") {
+      if (input.baseFen == null || input.baseFen <= 0) throw new Error("每周基数要大于 0");
+      const nextCfg: SaveCfg = {
+        ...cfg,
+        planFrom: today,
+        planBaseFen: input.baseFen,
+        targetFen: week52Cumulative(52, input.baseFen),
+      };
+      await T("goals").update(id, { name, deadline: input.deadline, typeConfig: nextCfg });
+      return;
+    }
+    if (input.targetFen == null || input.targetFen <= cfg.startFen)
+      throw new Error("目标金额要大于起始余额");
+    const saved = aliveDeposits(await deposits(), id).reduce((sum, row) => sum + row.amountFen, 0);
+    const remaining = input.targetFen - cfg.startFen - saved;
+    if (remaining <= 0) throw new Error("目标金额要大于已经存下的");
+    const rates = requiredRates(remaining, Math.max(0, diffDays(today, input.deadline)));
+    const planAmountFen =
+      cfg.period === "week"
+        ? rates.weeklyFen
+        : cfg.period === "month"
+          ? rates.monthlyFen
+          : rates.dailyFen;
+    const nextCfg: SaveCfg = {
+      ...cfg,
+      targetFen: input.targetFen,
+      planFrom: today,
+      planAmountFen,
+    };
+    await T("goals").update(id, { name, deadline: input.deadline, typeConfig: nextCfg });
+  });
+}
+
+export async function archiveGoal(id: string): Promise<void> {
+  const goal = (await T("goals").get(id)) as unknown as GoalRow | undefined;
+  if (!goal) throw new Error("找不到目标");
+  await T("goals").update(id, { status: "archived" });
 }
 
 export async function patchSettings(patch: Partial<SettingsRow>): Promise<void> {

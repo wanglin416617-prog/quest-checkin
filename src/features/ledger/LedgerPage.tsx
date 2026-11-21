@@ -1,5 +1,5 @@
 import type { Snapshot } from "@/services/game";
-import { reasonLabel } from "@/ui/format";
+import { ledgerTitle } from "@/ui/format";
 import { Icon } from "@/ui/icons";
 import { paths } from "@/ui/paths";
 
@@ -34,9 +34,8 @@ export function LedgerPage({ snap, onBack }: { snap: Snapshot; onBack: () => voi
             <div className="li" key={entry.id}>
               <div className="f1">
                 <div className="callout" style={{ fontWeight: 600 }}>
-                  {reasonLabel(entry.reason)}
+                  {ledgerTitle(entry.reason, entry.awardKey, snap.goalNames)}
                 </div>
-                <div className="cap c3">{entry.awardKey ?? ""}</div>
               </div>
               <span
                 className="num"

@@ -3,6 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { parseWeightToGrams, parseYuanToFen, type WeightUnit } from "@/domain/units";
 import { HomePage } from "@/features/home/HomePage";
 import { LevelsPage } from "@/features/map/LevelsPage";
+import { EditSheet } from "@/features/goals/EditSheet";
 import { Wizard } from "@/features/goals/Wizard";
 import { LedgerPage } from "@/features/ledger/LedgerPage";
 import { RewardsPage } from "@/features/rewards/RewardsPage";
@@ -10,14 +11,17 @@ import { SettingsPage } from "@/features/settings/SettingsPage";
 import { StatsPage } from "@/features/stats/StatsPage";
 import {
   deposit,
+  archiveGoal,
   ensureBasics,
   readSnapshot,
   undoGoalToday,
+  updateGoal,
   weighIn,
   type CheckResult,
   type Snapshot,
 } from "@/services/game";
 import { celebrate, clearCelebration, tierOf } from "@/ui/fx";
+import { onPwaRefresh } from "@/pwa/registerSW";
 import { Icon } from "@/ui/icons";
 import { paths } from "@/ui/paths";
 
@@ -41,6 +45,10 @@ export function App() {
   const [toast, setToast] = useState<{ text: string; goalId: string } | null>(null);
   const [toastOut, setToastOut] = useState(false);
   const [error, setError] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [offline, setOffline] = useState(() => !navigator.onLine);
+  const [refresh, setRefresh] = useState<(() => Promise<void>) | null>(null);
   const [Qa, setQa] = useState<ComponentType<{ pity: number; onChanged: () => void }> | null>(null);
 
   useEffect(() => {
@@ -69,13 +77,30 @@ export function App() {
 
   useEffect(() => {
     if (!snap) return;
-    applyTheme(snap.theme, snap.reduceMotion);
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => applyTheme(snap.theme, snap.reduceMotion);
+    apply();
     try {
       localStorage.setItem("qc-theme", snap.theme);
     } catch {
       /* 隐私模式忽略 */
     }
+    if (snap.theme !== "system") return;
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
   }, [snap]);
+
+  useEffect(() => onPwaRefresh((next) => setRefresh(() => next)), []);
+
+  useEffect(() => {
+    const mark = () => setOffline(!navigator.onLine);
+    window.addEventListener("online", mark);
+    window.addEventListener("offline", mark);
+    return () => {
+      window.removeEventListener("online", mark);
+      window.removeEventListener("offline", mark);
+    };
+  }, []);
 
   useEffect(() => {
     if (!qaBuild) return;
@@ -126,6 +151,19 @@ export function App() {
           <div className="body c2 mt12">每天一点，一起坚持</div>
         </button>
       ) : null}
+      {!splash && offline ? (
+        <div className="notice-bar" role="status">
+          现在离线，记录会留在这台设备上
+        </div>
+      ) : null}
+      {!splash && refresh ? (
+        <div className="notice-bar" role="status">
+          <span>有新版本可用</span>
+          <button type="button" onClick={() => void refresh()}>
+            立即更新
+          </button>
+        </div>
+      ) : null}
       {!splash && toast ? (
         <div className={`toast${toastOut ? " out" : ""}`} role="status">
           <span>{toast.text}</span>
@@ -149,6 +187,11 @@ export function App() {
               onWeigh={(goalId) => move({ name: "sheet", kind: "weigh", goalId })}
               onDeposit={(goalId) => move({ name: "sheet", kind: "deposit", goalId })}
               onUndo={(goalId) => void undoGoalToday(goalId)}
+              onEdit={(goalId) => {
+                setError("");
+                setEditingId(goalId);
+              }}
+              onDelete={(goalId) => setDeletingId(goalId)}
               onLedger={() => move({ name: "ledger" })}
               onRewards={() => move({ name: "tab", tab: "rewards" })}
             />
@@ -161,7 +204,7 @@ export function App() {
             <SettingsPage snap={snap} onChanged={() => undefined} />
           ) : null}
           {screen.name === "tab" && screen.tab === "map" ? (
-            <LevelsPage snap={snap} onCreate={() => setScreen({ name: "create" })} />
+            <LevelsPage snap={snap} onCreate={() => move({ name: "create" })} />
           ) : null}
           {screen.name === "create" ? (
             <TypePick
@@ -179,6 +222,61 @@ export function App() {
           ) : null}
           {screen.name === "ledger" ? (
             <LedgerPage snap={snap} onBack={() => move({ name: "tab", tab: "home" })} />
+          ) : null}
+          {editingId && snap.goals.some((goal) => goal.id === editingId) ? (
+            <EditSheet
+              goal={snap.goals.find((goal) => goal.id === editingId)!}
+              unit={snap.unit}
+              error={error}
+              onClose={() => {
+                setError("");
+                setEditingId(null);
+              }}
+              onSave={(input) => {
+                setError("");
+                void updateGoal(editingId, input)
+                  .then(() => setEditingId(null))
+                  .catch((caught: unknown) =>
+                    setError(caught instanceof Error ? caught.message : "没能保存"),
+                  );
+              }}
+            />
+          ) : null}
+          {deletingId ? (
+            <div className="scrim" onClick={() => setDeletingId(null)}>
+              <div
+                className="sheet"
+                role="dialog"
+                aria-label="删除目标"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="t2">删除这个目标？</div>
+                <div className="body c2 mt8">
+                  {snap.goalNames[deletingId] ?? "这个目标"}{" "}
+                  会从今天的列表里拿走。已经记下的积分流水会留着。
+                </div>
+                <div className="row g8 mt16">
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    onClick={() => setDeletingId(null)}
+                  >
+                    取消
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    onClick={() => {
+                      const id = deletingId;
+                      setDeletingId(null);
+                      void archiveGoal(id);
+                    }}
+                  >
+                    删除
+                  </button>
+                </div>
+              </div>
+            </div>
           ) : null}
           {screen.name === "sheet" ? (
             <CheckSheet

@@ -10,6 +10,8 @@ export function HomePage({
   onWeigh,
   onDeposit,
   onUndo,
+  onEdit,
+  onDelete,
   onLedger,
   onRewards,
 }: {
@@ -18,6 +20,8 @@ export function HomePage({
   onWeigh: (id: string) => void;
   onDeposit: (id: string) => void;
   onUndo: (id: string) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
   onLedger: () => void;
   onRewards: () => void;
 }) {
@@ -99,6 +103,8 @@ export function HomePage({
               unit={snap.unit}
               onWeigh={() => onWeigh(goal.id)}
               onUndo={() => onUndo(goal.id)}
+              onEdit={() => onEdit(goal.id)}
+              onDelete={() => onDelete(goal.id)}
             />
           ) : (
             <SavingsCard
@@ -106,6 +112,8 @@ export function HomePage({
               goal={goal}
               onDeposit={() => onDeposit(goal.id)}
               onUndo={() => onUndo(goal.id)}
+              onEdit={() => onEdit(goal.id)}
+              onDelete={() => onDelete(goal.id)}
             />
           ),
         )}
@@ -215,11 +223,15 @@ function WeightCard({
   unit,
   onWeigh,
   onUndo,
+  onEdit,
+  onDelete,
 }: {
   goal: GoalCard;
   unit: Snapshot["unit"];
   onWeigh: () => void;
   onUndo: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const base = import.meta.env.BASE_URL;
   const lost = Math.max(0, (goal.startG ?? 0) - (goal.currentG ?? 0));
@@ -262,6 +274,7 @@ function WeightCard({
         {lead >= 0 ? "领先" : "落后"}计划 {weightLabel(Math.abs(lead), unit)}{" "}
         {unit === "jin" ? "斤" : "kg"}
       </div>
+      <GoalActions onEdit={onEdit} onDelete={onDelete} />
     </div>
   );
 }
@@ -270,10 +283,14 @@ function SavingsCard({
   goal,
   onDeposit,
   onUndo,
+  onEdit,
+  onDelete,
 }: {
   goal: GoalCard;
   onDeposit: () => void;
   onUndo: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const base = import.meta.env.BASE_URL;
   const pct = Math.round((goal.ratio ?? 0) * 100);
@@ -294,8 +311,13 @@ function SavingsCard({
         <img src={`${base}icons/jars/${jar}.svg`} alt="" width={56} height={56} />
         <div className="f1">
           <div className="row between g8">
-            <div className="t3 ell" style={{ fontSize: 16 }}>
-              {goal.name}
+            <div className="f1">
+              <div className="t3 ell" style={{ fontSize: 16 }}>
+                {goal.name}
+              </div>
+              <div className="cap c2">
+                连胜 {goal.streak} {goal.streakUnit ?? "周"}
+              </div>
             </div>
             <span className="chip savings">{pct}%</span>
           </div>
@@ -334,6 +356,20 @@ function SavingsCard({
           </button>
         )}
       </div>
+      <GoalActions onEdit={onEdit} onDelete={onDelete} />
+    </div>
+  );
+}
+
+function GoalActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  return (
+    <div className="row g8 mt8">
+      <button className="btn btn-secondary xs" type="button" onClick={onEdit}>
+        编辑
+      </button>
+      <button className="btn btn-ghost xs" type="button" onClick={onDelete}>
+        删除
+      </button>
     </div>
   );
 }

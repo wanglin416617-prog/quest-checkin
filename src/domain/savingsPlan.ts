@@ -1,4 +1,5 @@
 /** 存钱计划与进度（金额全部为整数“分”） */
+import { diffDays, weekStart, type DateKey } from "./dates.ts";
 import { divCeil, divFloor } from "./int.ts";
 import type { Rng } from "./rng.ts";
 
@@ -39,6 +40,17 @@ export function requiredRates(remaining: number, remainingDays: number): Require
 }
 
 // ---------- 52 周挑战 ----------
+/**
+ * 挑战周序号：按 Asia/Shanghai 自然周（周一 00:00 起）。
+ * 创建当周是第 1 周，之后每过一个自然周 +1。不按“从开始日数满 7 天”。
+ */
+export function week52Index(start: DateKey, day: DateKey): number {
+  const from = weekStart(start);
+  const current = weekStart(day);
+  if (current < from) return 0;
+  return Math.floor(diffDays(from, current) / 7) + 1;
+}
+
 export function week52Amount(n: number, baseFen: number): number {
   if (n < 1 || n > 52) throw new RangeError("周序号 1..52");
   return n * baseFen;

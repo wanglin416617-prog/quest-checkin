@@ -42,6 +42,23 @@ export function reasonLabel(reason: string): string {
   return REASON[reason] ?? reason;
 }
 
+/** 流水给用户看的中文，不露出 awardKey 和 UUID。 */
+export function ledgerTitle(
+  reason: string,
+  awardKey: string | undefined,
+  names: Readonly<Record<string, string>>,
+): string {
+  if (reason === "undo") return "撤销收回";
+  if (reason === "allclear") return "今日全清奖励";
+  const goalId = awardKey?.split(":")[1];
+  const name = goalId ? names[goalId] : undefined;
+  if (reason === "weighIn") return name ? `${name} · 称重` : "称重";
+  if (reason === "deposit") return name ? `${name} · 打卡` : "打卡";
+  if (reason === "milestone") return name ? `${name} · 过关` : "过关奖励";
+  if (reason === "box") return "盲盒";
+  return reasonLabel(reason);
+}
+
 export const RARITY_LABEL: Record<string, string> = {
   common: "普通",
   rare: "稀有",
