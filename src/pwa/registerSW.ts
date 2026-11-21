@@ -4,5 +4,5 @@ export function registerPwa(): void {
   if (import.meta.env.MODE === "test") {
     return;
   }
-  registerSW({ immediate: false });
+  registerSW({ immediate: true });
 }

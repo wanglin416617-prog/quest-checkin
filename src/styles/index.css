@@ -1,33 +1,82 @@
-:root {
-  color-scheme: light;
-  --bg: #fff7ed;
-  --ink: #1c1917;
-  --muted: #57534e;
-  --accent: #f97316;
-  --card: #ffffff;
-  font-family: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color: var(--ink);
-  background: var(--bg);
-}
+@import "./tokens.css";
+@import "./app.css";
 
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  background: var(--bg);
-}
-
+html,
+body,
 #root {
-  min-height: 100vh;
+  height: 100%;
 }
 
-button,
-input,
-textarea {
-  font: inherit;
+.field input,
+.qa-panel input,
+.sheet input,
+.card input {
+  border: 0;
+  background: transparent;
+  width: 100%;
+  padding: 0;
+  font: 700 22px/28px var(--font-num);
+  color: var(--color-text);
+  outline: none;
+}
+
+.seg > button {
+  flex: 1;
+  height: 36px;
+  border-radius: 11px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-2);
+}
+
+.seg > button.on {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-card);
+}
+
+.opt,
+.tab,
+.link,
+.chip,
+.tog {
+  cursor: pointer;
+}
+
+.toast {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 12px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--color-text);
+  color: var(--color-bg);
+  box-shadow: var(--shadow-raised);
+}
+
+.toast button {
+  color: var(--color-brand-2);
+  font-weight: 700;
+}
+
+.splash {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(120% 70% at 50% 38%, var(--color-brand-soft), var(--color-bg) 70%);
+}
+
+.splash img:first-child {
+  border-radius: 28px;
+  box-shadow: var(--shadow-glow-brand);
 }

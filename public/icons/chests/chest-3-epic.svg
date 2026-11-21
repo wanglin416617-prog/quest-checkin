@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="art chest chest-epic" width="128" height="128" viewBox="0 0 64 64" aria-label="史诗宝箱">
+<defs>
+<linearGradient id="c45b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9A6CFA"/><stop offset="1" stop-color="#5A30C2"/></linearGradient>
+<linearGradient id="c45l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B08AFC"/><stop offset="1" stop-color="#6A3FD6"/></linearGradient>
+<linearGradient id="c45t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EADFFF"/><stop offset="1" stop-color="#B79CF5"/></linearGradient>
+<radialGradient id="c45g" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="rgba(139,92,246,0.45)"/><stop offset="1" stop-color="rgba(139,92,246,0)"/></radialGradient>
+<radialGradient id="c45in" cx=".5" cy="1" r="1"><stop offset="0" stop-color="#FFF6C8"/><stop offset="1" stop-color="#FFB800" stop-opacity="0"/></radialGradient>
+</defs>
+<circle cx="32" cy="36" r="30" fill="url(#c45g)"/>
+<ellipse cx="32" cy="57" rx="22" ry="3.2" fill="#000" opacity=".14"/>
+
+<rect x="10" y="27" width="44" height="28" rx="4.5" fill="url(#c45b)"/>
+<rect x="10" y="27" width="44" height="3" fill="#000" opacity=".12"/>
+<rect x="18" y="27" width="5" height="28" fill="url(#c45t)" opacity=".9"/>
+<rect x="41" y="27" width="5" height="28" fill="url(#c45t)" opacity=".9"/>
+<rect x="10" y="50" width="44" height="5" rx="2.5" fill="#000" opacity=".12"/>
+<path d="M10 28c0-11 9.5-15 22-15s22 4 22 15z" fill="url(#c45l)"/><path d="M14 22c2-4 8-6 18-6" stroke="#fff" stroke-opacity=".45" stroke-width="2.4" stroke-linecap="round" fill="none"/><rect x="18" y="14.5" width="5" height="13.5" fill="url(#c45t)" opacity=".9"/><rect x="41" y="14.5" width="5" height="13.5" fill="url(#c45t)" opacity=".9"/>
+<rect x="9" y="25.5" width="46" height="5" rx="2.2" fill="url(#c45t)"/>
+<rect x="26.5" y="26" width="11" height="13" rx="3" fill="url(#c45t)" stroke="#5A30C2" stroke-opacity=".35"/>
+<circle cx="32" cy="31.2" r="1.8" fill="#5A30C2"/><rect x="31.2" y="31.5" width="1.6" height="4" rx=".8" fill="#5A30C2"/>
+<circle cx="14" cy="33" r="1.3" fill="#EADFFF"/><circle cx="14" cy="49" r="1.3" fill="#EADFFF"/><circle cx="50" cy="33" r="1.3" fill="#EADFFF"/><circle cx="50" cy="49" r="1.3" fill="#EADFFF"/>
+<path d="M32 42.5l3 3-3 3.6-3-3.6z" fill="#7CF2FF" stroke="#fff" stroke-width=".8"/>
+
+</svg>
